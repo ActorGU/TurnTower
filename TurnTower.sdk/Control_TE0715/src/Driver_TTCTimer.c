@@ -338,11 +338,16 @@ s32 TTCTimer_setup()
 	Status = XScuGic_Connect(&Intc, XPAR_FABRIC_UART_TAIL_RXD_ENDOFPACKET_INTR,
 					(Xil_InterruptHandler)Uart_Tail_rx,(void*)&Intc);
 	XScuGic_Enable(&Intc, XPAR_FABRIC_UART_TAIL_RXD_ENDOFPACKET_INTR);
+	//Uart_Tracker_rx
+	XScuGic_SetPriorityTriggerType(&Intc , XPAR_FABRIC_UART_TRACKER_RXD_ENDOFPACKET_INTR , 0xb0, 0x3);
+	Status = XScuGic_Connect(&Intc, XPAR_FABRIC_UART_TRACKER_RXD_ENDOFPACKET_INTR,
+					(Xil_InterruptHandler)Uart_Tracker_rx,(void*)&Intc);
+	XScuGic_Enable(&Intc, XPAR_FABRIC_UART_TRACKER_RXD_ENDOFPACKET_INTR);
 
 	//定时器中断配置
-	Drv_TTCTimer_Init(0, 20, Peripheral_Inquire);
+//	Drv_TTCTimer_Init(0, 20, Peripheral_Inquire);
 	Drv_TTCTimer_Init(1, 20 , Data_upload);
-	Drv_TTCTimer_Start(0);
+//	Drv_TTCTimer_Start(0);
 	Drv_TTCTimer_Start(1);
 	//中断异常处理函数
 	Xil_ExceptionInit();
@@ -352,6 +357,7 @@ s32 TTCTimer_setup()
 	Xil_ExceptionEnable();
 
 	g_bGetCpuCmd = 0;
+	g_bInitComplete = 0;
 	Data_Header();
 
 	return 0;

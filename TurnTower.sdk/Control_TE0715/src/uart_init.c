@@ -12,6 +12,7 @@
 #include "xparameters.h"
 #include "xttcps.h"
 #include "Driver_TTCTimer.h"
+#include "sleep.h"
 u32 *tx_address_PC = (u32*)UART_PC_ADDR_tx;
 u32 *rx_address_PC = (u32*)UART_PC_ADDR_rx;
 u32 *tx_address_HW = (u32*)UART_HW_ADDR_tx;
@@ -24,6 +25,8 @@ u32 *rx_address_ServoA = (u32*)UART_SERVOA_ADDR_rx;
 u32 *tx_address_ServoA = (u32*)UART_SERVOA_ADDR_tx;
 u32 *rx_address_ServoB = (u32*)UART_SERVOB_ADDR_rx;
 u32 *tx_address_ServoB = (u32*)UART_SERVOB_ADDR_tx;
+u32 *rx_address_Tracker = (u32*)UART_Tracker_ADDR_rx;
+u32 *tx_address_Tracker = (u32*)UART_Tracker_ADDR_tx;
 
 
 void uart_tx(u32 *addr, u16 *sendbuf , int len)
@@ -94,6 +97,30 @@ void Uart_Pc_rx(void)
 
 }
 
+void Uart_Tracker_rx(void)
+{
+	int i = 0;
+	int j = 0;
+	u8 head_index = 0;
+	u8 empty = 0;
+//	u16 data_len = 0;
+	u32 data_reg;
+	empty = Xil_In32(UART_Tracker_ADDR_rx+4);
+	empty = empty&0x1;
+	while(!empty)
+	{
+		data_reg = Xil_In32(UART_Tracker_ADDR_rx);
+		if(i<128)
+		{
+			data_recv_Tail[i] = data_reg;
+		}
+		i++;
+		empty = Xil_In32(UART_TAIL_ADDR_rx+4);
+		empty = empty&0x1;
+	}
+}
+
+
 /*************************************************************
  * 函数名称：Uart_Tail_rx
  * 函数功能：接收跟踪板的数据包
@@ -126,14 +153,11 @@ void Uart_Tail_rx(void)
 	while(j < 128)
 		if((0x55 == data_recv_Tail[j])&&(0xaa == data_recv_Tail[j+1])&&(0x22 == data_recv_Tail[j+4]))
 		{
-//			DataSend_PC[2].packet_Data[12] = data_recv_Tail[j+17];
-//			DataSend_PC[2].packet_Data[13] = data_recv_Tail[j+18];
-//			DataSend_PC[2].packet_Data[14] = data_recv_Tail[j+19];
-//			DataSend_PC[2].packet_Data[15] = data_recv_Tail[j+20];
-			image_state = data_recv_Tail[j+5]&0x07;
+
+			image_state = data_recv_Tail[j+5]&0x07;//从跟踪板返回的F1包获得图像状态
+			Tail_state = data_recv_Tail[j+5]&0x18;//从跟踪板返回的F1包获得跟踪器状态
 			for(int k = 0 ; k < 45 ; k++ )
 			{
-//				DataSend_PC[2].packet_Data[k] = data_recv_Tail[j+k+5];
 				Data_send_PC_F[k] = data_recv_Tail[j+k];
 
 			}
@@ -159,6 +183,7 @@ void Uart_HW_rx(void)
 	u8 empty = 0;
 	u32 data_reg;
 	u16 checksum = 0;
+	int CommendCnt_HW = 0;
 
 	memset( data_recv_HW , 0 ,127);
 	/*读取fifo中所有128个数*/
@@ -177,10 +202,25 @@ void Uart_HW_rx(void)
 	}
 	/*寻找包头所在位置*/
 	while(j < 128)
-		if((0xEB == data_recv_PC[j])&&(0x90 == data_recv_PC[j+1]))
+		if((0xEB == data_recv_HW[j])&&(0x90 == data_recv_HW[j+1]))
 		{
 			Commend_HW_to_ZYNQ[0] = data_recv_HW[j];
 			Commend_HW_to_ZYNQ[1] = data_recv_HW[j+1];
+			CommendCnt_HW += 1;
+			/*收到红外第一包数据后进行图像翻转*/
+			if (1 == CommendCnt_HW)
+			{
+				sleep(2);
+				Commend_ZYNQ_to_HW[2] = 0x94;
+				Commend_ZYNQ_to_HW[3] = 0x00;
+				Commend_ZYNQ_to_HW[4] = 0x00;
+				SendData_HW();
+				Commend_ZYNQ_to_HW[2] = 0x93;
+				Commend_ZYNQ_to_HW[3] = 0x00;
+				Commend_ZYNQ_to_HW[4] = 0x00;
+				SendData_HW();
+				g_bInitComplete = 1;
+			}
 			break;
 		}
 		else
@@ -188,6 +228,7 @@ void Uart_HW_rx(void)
 			j++;
 		}
 	head_index = j;//记录包头的序号
+
 	for ( j = 0 ; j < 7 ; j++ )
 	{
 		Commend_HW_to_ZYNQ[j+2] = data_recv_HW[head_index+j+2];
@@ -308,7 +349,7 @@ void Uart_ServoB_rx(void)
 	u32 data_reg;
 	u8 head_index;
 	u16 checksum = 0;
-	memset(data_recv_servo , 0 ,127);
+	memset(data_recv_servo_B , 0 ,127);
 	/*读取fifo中所有128个数*/
 	empty = Xil_In32(UART_SERVOB_ADDR_rx+4);
 	empty = empty&0x1;
@@ -317,7 +358,7 @@ void Uart_ServoB_rx(void)
 		data_reg = Xil_In32(UART_SERVOB_ADDR_rx);
 		if(i<128)
 		{
-			data_recv_servo[i] = data_reg;
+			data_recv_servo_B[i] = data_reg;
 		}
 		i++;
 		empty = Xil_In32(UART_SERVOB_ADDR_rx+4);
@@ -326,10 +367,10 @@ void Uart_ServoB_rx(void)
 
 	/*寻找包头所在位置*/
 	while(j < 128)
-		if((0x55 == data_recv_servo[j])&&(0xaa == data_recv_servo[j+1]))
+		if((0x55 == data_recv_servo_B[j])&&(0xaa == data_recv_servo_B[j+1]))
 		{
-			Commend_ServoA_to_ZYNQ[0] = data_recv_servo[j];//55
-			Commend_ServoA_to_ZYNQ[1] = data_recv_servo[j+1];//aa
+			Commend_ServoB_to_ZYNQ[0] = data_recv_servo_B[j];//55
+			Commend_ServoB_to_ZYNQ[1] = data_recv_servo_B[j+1];//aa
 			break;
 		}
 		else
@@ -339,11 +380,11 @@ void Uart_ServoB_rx(void)
 	head_index = j;//记录包头的序号
 	for ( i = 0 ; i < 29 ; i++ )
 	{
-		Commend_ServoA_to_ZYNQ[i+2] = data_recv_servo[head_index+2+i];
-		checksum += Commend_ServoA_to_ZYNQ[i+2];
+		Commend_ServoB_to_ZYNQ[i+2] = data_recv_servo_B[head_index+2+i];
+		checksum += Commend_ServoB_to_ZYNQ[i+2];
 	}
-	Commend_ServoA_to_ZYNQ[31] = data_recv_servo[head_index+31];
-	if( checksum == Commend_ServoA_to_ZYNQ[31])
+	Commend_ServoB_to_ZYNQ[31] = data_recv_servo_B[head_index+31];
+	if( checksum == Commend_ServoB_to_ZYNQ[31])
 	{
 		pitch_angle_state = ((u16)Commend_ServoB_to_ZYNQ[6]<<8 & 0xff00) | (Commend_ServoB_to_ZYNQ[5] & 0x00ff);
 		pitch_gyro_state = ((u16)Commend_ServoB_to_ZYNQ[10]<<8 & 0xff00) | (Commend_ServoB_to_ZYNQ[9] & 0x00ff);
@@ -362,6 +403,9 @@ void SendData_HW()
 
 	Commend_ZYNQ_to_HW[0] = 0xEB;
 	Commend_ZYNQ_to_HW[1] = 0x90;
+	Commend_ZYNQ_to_HW[5] = 0x00;
+	Commend_ZYNQ_to_HW[6] = 0x00;
+
 
 	/*计算校验和，3-7字节*/
 	for( i = 0 ; i < 5 ; i++ )
@@ -382,26 +426,41 @@ void SendData_HW()
  * 函数功能：发送指令至可见光
  * 说明：Inq_flag是查询指令标志,0xff代表查询指令,0x00代表控制指令
  *************************************************************/
-void SendData_KJG(u8 Inq_flag)
+void SendData_KJG()
 {
-	if (0xff == Inq_flag)
+//	if (0xff == Inq_flag)
+//	{
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header0;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header1_Inq;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header2_Inq;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.commend1_Inq;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_End;
+//	}
+//	else if (0x00 == Inq_flag)
+//	{
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header0;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header1;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header2;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.commend1;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.commend2;
+//		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_End;
+//	}
+	u16 checkout_KJG;
+	checkout_KJG = 0;
+	Commend_ZYNQ_to_KJG_new[0] = 0xff;
+	Commend_ZYNQ_to_KJG_new[1] = 0x01;
+	Commend_ZYNQ_to_KJG_new[2] = 0x00;
+	//计算校验和
+	for ( int i = 1 ; i < 6 ; i ++ )
 	{
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header0;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header1_Inq;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header2_Inq;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.commend1_Inq;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_End;
+		checkout_KJG += Commend_ZYNQ_to_KJG_new[i];
 	}
-	else if (0x00 == Inq_flag)
+	Commend_ZYNQ_to_KJG_new[6] = checkout_KJG;
+	//发送至可见光
+	for(int j = 0 ; j < 7 ; j++ )
 	{
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header0;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header1;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_Header2;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.commend1;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.commend2;
-		*tx_address_KJG = Commend_ZYNQ_to_KJG.packet_End;
+		*tx_address_KJG = Commend_ZYNQ_to_KJG_new[j];
 	}
-
 }
 /*************************************************************
  * 函数名称：SendData_Servo
@@ -419,7 +478,7 @@ void SendData_Servo()
 	Commend_ZYNQ_to_ServoB[0] = 0x55;
 	Commend_ZYNQ_to_ServoB[1] = 0xAA;
 	Commend_ZYNQ_to_ServoB[2] = 0x1C;
-
+	//计算校验和
 	for( i = 2 ; i < 31 ; i++ )
 	{
 		CheckSumA += Commend_ZYNQ_to_ServoA[i];
@@ -428,7 +487,7 @@ void SendData_Servo()
 
 	Commend_ZYNQ_to_ServoA[31] = CheckSumA;
 	Commend_ZYNQ_to_ServoB[31] = CheckSumB;
-
+	//发送至伺服A、B通道
 	for( i = 0 ; i < 32 ; i++ )
 	{
 		*tx_address_ServoA = Commend_ZYNQ_to_ServoA[i];
@@ -448,9 +507,8 @@ void Data_upload(void *arg)
 	int i = 0;
 	//伺服
 	DataSend_PC[0].packet_ID = Packet_B1_B2;
-	DataSend_PC[0].packet_Len = 0x14;//6+11=17字节
-	DataSend_PC[0].packet_Data[0] = servo_state_upload<<4;
-//	DataSend_PC[0].packet_Data[0] = 0x18;
+	DataSend_PC[0].packet_Len = 0x14;//数据17字节+包头3字节=20
+	DataSend_PC[0].packet_Data[0] = servo_state_upload<<4;//伺服状态只从航向通道获取
 	DataSend_PC[0].packet_Data[2] = (yaw_angle_state & 0xff00)>>8;
 	DataSend_PC[0].packet_Data[3] = yaw_angle_state & 0x00ff;
 	DataSend_PC[0].packet_Data[4] = (pitch_angle_state & 0xff00)>>8;
@@ -462,15 +520,11 @@ void Data_upload(void *arg)
 	DataSend_PC[0].packet_Data[16] = pitch_gyro_state & 0x00ff;
 	//光学
 	DataSend_PC[1].packet_ID = Packet_D2_D1;
-	DataSend_PC[1].packet_Len = 0x14;//5+12=17字节
+	DataSend_PC[1].packet_Len = 0x14;//数据17字节+包头3字节=20
 	DataSend_PC[1].packet_Data[5] = DataSend_PC[1].packet_Data[5]|( image_state & 0x07);//成像状态
 	DataSend_PC[1].packet_Data[5] = DataSend_PC[1].packet_Data[5]|(( e_zoom_hw & 0x03 )<<5);//红外变倍
-	SendData_BDF(tx_address_Tail);
+	SendData_BDF(tx_address_Tracker);
 
-
-	//跟踪
-	DataSend_PC[2].packet_ID = Packet_F1_F2;
-	DataSend_PC[2].packet_Len = 0x13;//1+15=16字节
 	SendData_BDF(tx_address_PC);
 	//上报数据后清零
 	for ( i = 0 ; i < 3 ; i++ )
@@ -496,8 +550,6 @@ void SendData_BDF( u32 *addr_send_BD )
 	u8 Packet_Len_B = 0;
 	u8 CheckOut_D = 0;
 	u8 Packet_Len_D = 0;
-	u8 CheckOut_F = 0;
-	u8 Packet_Len_F = 0;
 	//发送B包数据
 	*addr_send_BD = DataSend_PC[0].packet_Header0;
 	*addr_send_BD = DataSend_PC[0].packet_Header1;
@@ -528,24 +580,10 @@ void SendData_BDF( u32 *addr_send_BD )
 	}
 	DataSend_PC[1].packet_Check = CheckOut_D;
 	*addr_send_BD = DataSend_PC[1].packet_Check;
-
+	/*如果发送地址是上位机，则发送增加F包*/
 	if(tx_address_PC == addr_send_BD)//给上位机发送B+D+F包数据
 	{
-		//发送F包数据
-//		*addr_send_BD = DataSend_PC[2].packet_Header0;
-//		*addr_send_BD = DataSend_PC[2].packet_Header1;
-//		*addr_send_BD = DataSend_PC[2].packet_Header2;
-//		*addr_send_BD = DataSend_PC[2].packet_Len;
-//		*addr_send_BD = DataSend_PC[2].packet_ID;
-//		Packet_Len_F = DataSend_PC[2].packet_Len & 0x3F;//0011 1111
-//		CheckOut_F = DataSend_PC[2].packet_Len ^DataSend_PC[2].packet_ID;
-//		for(i = 0 ; i <(Packet_Len_F-3) ; i++)
-//		{
-//			*addr_send_BD = DataSend_PC[2].packet_Data[i];
-//			CheckOut_F = CheckOut_F^DataSend_PC[2].packet_Data[i];
-//		}
-//		DataSend_PC[2].packet_Check = CheckOut_F;
-//		*addr_send_BD = DataSend_PC[2].packet_Check;
+
 		for(i = 0 ; i < 45 ; i++ )
 		{
 			*addr_send_BD = Data_send_PC_F[i];

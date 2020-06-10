@@ -66,6 +66,7 @@ void Commend_Servo_analysis(void)
 	u16 Pitch_speed;
 	float Yaw_angle_temp;
 	float Pitch_angle_temp;
+
 	memset(Commend_ZYNQ_to_ServoA , 0 , 31);
 	memset(Commend_ZYNQ_to_ServoB , 0 , 31);
 	Servo_state = DataRecv_PC.packet_Data[0] & 0x0F;// 4bit 0~3 0000 1111
@@ -110,9 +111,18 @@ void Commend_Servo_analysis(void)
 				//保留小数点两位
 				Yaw_angle_temp = ( (float)( (int)( (Yaw_angle_temp+0.005)*100 ) ) )/100;
 				Pitch_angle_temp = ( (float)( (int)( (Pitch_angle_temp+0.005)*100 ) ) )/100;
-
+				if ( Pitch_angle_temp > 180 )
+				{
+					Pitch_angle_temp = Pitch_angle_temp - 360;
+				}
+//				Pitch_angle_temp = (u16)Pitch_angle_temp | 0x8000;
+//				Pitch_angle_temp = (16)(Pitch_angle_temp;
+//				pintch_temp = Pitch_angle_temp;
 //				Yaw_angle_temp = (int)(Yaw_angle_temp+0.5);
 //				Pitch_angle_temp = (int)(Pitch_angle_temp+0.5);
+//				Pitch_angle_temp
+//				u16 Pitch_temp_a;
+//				Pitch_temp_a = (IN16)(Pitch_angle_temp*100.0);
 
 				//伺服接收先低8后高8
 				Commend_ZYNQ_to_ServoA[3] = 0x05;
@@ -120,8 +130,8 @@ void Commend_Servo_analysis(void)
 				Commend_ZYNQ_to_ServoA[6] = ((u16)(Yaw_angle_temp*100) >> 8)& 0x00ff;
 
 				Commend_ZYNQ_to_ServoB[3] = 0x05;
-				Commend_ZYNQ_to_ServoB[5] = (u16)(Pitch_angle_temp*100) & 0x00ff;
-				Commend_ZYNQ_to_ServoB[6] = ((u16)(Pitch_angle_temp*100) >> 8)& 0x00ff;
+				Commend_ZYNQ_to_ServoB[5] = (IN16)(Pitch_angle_temp*100) & 0x00ff;
+				Commend_ZYNQ_to_ServoB[6] = (((IN16)(Pitch_angle_temp*100) >> 8)& 0x00ff);
 				break;
 		default:
 				Commend_ZYNQ_to_ServoA[3] = 0x00;
@@ -148,8 +158,9 @@ void Commend_Optic_analysis(void)
 	u8 C1_commend1_high = 0x00;
 	u8 C1_commend1 = 0x00;
 	memset(Commend_ZYNQ_to_HW , 0 , 7);
-	Commend_ZYNQ_to_KJG.commend1 = 0x00;
-	Commend_ZYNQ_to_KJG.commend2 = 0x00;
+	memset(Commend_ZYNQ_to_KJG_new , 0 , 6);
+//	Commend_ZYNQ_to_KJG.commend1 = 0x00;
+//	Commend_ZYNQ_to_KJG.commend2 = 0x00;
 
 	C1_imager_choose = DataRecv_PC.packet_Data[1] & 0x07;//3bit 0~2 0000 0111
 //	C1_commend_para = (DataRecv_PC.packet_Data[1] & 0x38)>>3;//3bit 3~5  0011 1000
@@ -166,8 +177,9 @@ void Commend_Optic_analysis(void)
 			}
 			else if(0x01 == C1_imager_choose)
 			{
-				Commend_ZYNQ_to_KJG.commend1 = 0x07;
-				Commend_ZYNQ_to_KJG.commend2 = 0x00;
+//				Commend_ZYNQ_to_KJG.commend1 = 0x07;
+//				Commend_ZYNQ_to_KJG.commend2 = 0x00;
+				Commend_ZYNQ_to_KJG_new[3] = 0x00;
 			}
 		break;
 		case(0x08)://视场+,
@@ -177,8 +189,9 @@ void Commend_Optic_analysis(void)
 				}
 				else if (0x01 == C1_imager_choose)
 				{
-					Commend_ZYNQ_to_KJG.commend1 = 0x07;
-					Commend_ZYNQ_to_KJG.commend2 = 0x02;
+//					Commend_ZYNQ_to_KJG.commend1 = 0x07;
+//					Commend_ZYNQ_to_KJG.commend2 = 0x02;
+					Commend_ZYNQ_to_KJG_new[3] = 0x20;
 				}
 		break;
 		case(0x09)://视场-
@@ -188,8 +201,9 @@ void Commend_Optic_analysis(void)
 				}
 				else if (0x01 == C1_imager_choose)
 				{
-					Commend_ZYNQ_to_KJG.commend1 = 0x07;
-					Commend_ZYNQ_to_KJG.commend2 = 0x03;
+//					Commend_ZYNQ_to_KJG.commend1 = 0x07;
+//					Commend_ZYNQ_to_KJG.commend2 = 0x03;
+					Commend_ZYNQ_to_KJG_new[3] = 0x40;
 				}
 		break;
 		case(0x02)://亮度+
@@ -217,10 +231,20 @@ void Commend_Optic_analysis(void)
 		case(0x0C)://内部非均匀校正
 				if (0x02 == C1_imager_choose)
 				{
-					Commend_ZYNQ_to_HW[2] = 0x6E;
+					Commend_ZYNQ_to_HW[2] = 0x6e;
 				}
 				else if (0x01 == C1_imager_choose)
 				{
+				}
+		break;
+		case(0x0d):
+				if(0x02 == C1_imager_choose)
+				{
+					Commend_ZYNQ_to_HW[2] = 0x6f;
+				}
+				else if(0x01 == C1_imager_choose)
+				{
+
 				}
 		break;
 		case(0x0E)://黑白热切换
@@ -235,8 +259,9 @@ void Commend_Optic_analysis(void)
 		break;
 		default://默认无动作
 			Commend_ZYNQ_to_HW[2] = 0x00;
-			Commend_ZYNQ_to_KJG.commend1 = 0x07;
-			Commend_ZYNQ_to_KJG.commend2 = 0x00;
+			Commend_ZYNQ_to_KJG_new[3] = 0x00;
+//			Commend_ZYNQ_to_KJG.commend1 = 0x07;
+//			Commend_ZYNQ_to_KJG.commend2 = 0x00;
 		break;
 		}
 
@@ -247,34 +272,35 @@ void Commend_Optic_analysis(void)
 	}
 	else if(0x01 == C1_imager_choose)
 	{
-		SendData_KJG(0x00);
+		SendData_KJG();
 	}
 
 }
 /*************************************************************
- * 函数名称：Commend_Tail_analysis
+ * 函数名称：Commend_Tracker_analysis
  * 函数功能：解析跟踪器指令(直接转发)
  *************************************************************/
 void Commend_Tail_analysis(void)
 {
 
 	int j = 0;
+	int i = 0;
 	u8 PC_Packet_Len = 0;
 	u8 image_choose_commend = 0;
-	memset(sendbuf , 0 , 29);
-	//数据转存到sendbuf
-	sendbuf[0] = DataRecv_PC.packet_Header0;
-	sendbuf[1] = DataRecv_PC.packet_Header1;
-	sendbuf[2] = DataRecv_PC.packet_Header2;
-	sendbuf[3] = DataRecv_PC.packet_Len;
-	PC_Packet_Len = sendbuf[3]&0x3f;
-	sendbuf[4] = DataRecv_PC.packet_ID;
+	memset(Commend_ZYNQ_to_Tracker , 0 , 29);
+	//数据转存到Commend_ZYNQ_to_Tracker
+	Commend_ZYNQ_to_Tracker[0] = DataRecv_PC.packet_Header0;
+	Commend_ZYNQ_to_Tracker[1] = DataRecv_PC.packet_Header1;
+	Commend_ZYNQ_to_Tracker[2] = DataRecv_PC.packet_Header2;
+	Commend_ZYNQ_to_Tracker[3] = DataRecv_PC.packet_Len;
+	PC_Packet_Len = Commend_ZYNQ_to_Tracker[3]&0x3f;
+	Commend_ZYNQ_to_Tracker[4] = DataRecv_PC.packet_ID;
 	for(j = 0 ; j <(PC_Packet_Len-3) ; j++)
 	{
-		sendbuf[5+j] = DataRecv_PC.packet_Data[j];
+		Commend_ZYNQ_to_Tracker[5+j] = DataRecv_PC.packet_Data[j];
 	}
-	sendbuf[PC_Packet_Len+2] = DataRecv_PC.packet_Check;
-	image_choose_commend = sendbuf[5]&0x07;
+	Commend_ZYNQ_to_Tracker[PC_Packet_Len+2] = DataRecv_PC.packet_Check;
+	image_choose_commend = Commend_ZYNQ_to_Tracker[5]&0x07;
 //	switch(image_choose_commend)
 //	{
 //	case(0x01)://kjg
@@ -286,7 +312,11 @@ void Commend_Tail_analysis(void)
 //	}
 
 	//直接转发数据
-	uart_tx(tx_address_PC , sendbuf , PC_Packet_Len+3);
+//	uart_tx(tx_address_Tracker , Commend_ZYNQ_to_Tracker , PC_Packet_Len+3);
+	for ( i = 0 ; i < PC_Packet_Len+3 ; i++ )
+	{
+		*tx_address_Tracker = Commend_ZYNQ_to_Tracker[i];
+	}
 
 }
 

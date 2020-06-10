@@ -1,0 +1,7 @@
+//arch = zynq; split = false; format = BIN
+the_ROM_image:
+{
+	[bootloader]E:\vivado_proj\TurnTower\TurnTower.sdk\Control_TE0715_fsbl\Debug\Control_TE0715_fsbl.elf
+	E:\vivado_proj\TurnTower\TurnTower.runs\impl_1\sys_design_wrapper.bit
+	E:\vivado_proj\TurnTower\TurnTower.sdk\Control_TE0715\Debug\Control_TE0715.elf
+}

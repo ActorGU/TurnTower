@@ -40,11 +40,11 @@ void Data_Header()
 		DataSend_PC[i].packet_Check = 0x00;
 	}
 
-	/*可见光数据包包头*/
-	Commend_ZYNQ_to_KJG.packet_Header0 = 0x81;
-	Commend_ZYNQ_to_KJG.packet_Header1 = 0x01;
-	Commend_ZYNQ_to_KJG.packet_Header2 = 0x04;
-	Commend_ZYNQ_to_KJG.packet_End = 0xFF;
+//	/*可见光数据包包头*/
+//	Commend_ZYNQ_to_KJG.packet_Header0 = 0x81;
+//	Commend_ZYNQ_to_KJG.packet_Header1 = 0x01;
+//	Commend_ZYNQ_to_KJG.packet_Header2 = 0x04;
+//	Commend_ZYNQ_to_KJG.packet_End = 0xFF;
 
 	/*伺服数据包包头*/
 	memset(Commend_ZYNQ_to_ServoA , 0 , 31);

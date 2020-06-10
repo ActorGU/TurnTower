@@ -16,8 +16,19 @@ int main(void)
 {
 	init_platform();
 	TTCTimer_setup();
+//	while(1)
+//	{
+//		if(1 == g_bInitComplete)
+//		{
+//			g_bInitComplete = 0;
+//			Drv_TTCTimer_Start(0);
+////			Drv_TTCTimer_Start(1);
+//			break;
+//		}
+//	}
 	while (1)
 	{
+
 		if(1 == g_bGetCpuCmd)
 		{
 			g_bGetCpuCmd = 0;

@@ -10,6 +10,10 @@
 
 void Data_analysis(void);
 
+//typedef IN16 Xint16 ;
+typedef short    IN16;
+
+
 void Peripheral_Inquire(void *arg);
 void ISR_TTC0(void *arg);
 
