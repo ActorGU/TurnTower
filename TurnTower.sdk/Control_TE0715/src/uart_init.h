@@ -130,7 +130,7 @@ u16 pitch_gyro_recv;
 u32 data_recv_HW[128];//红外探测器数据缓存
 u8 e_zoom_hw;//红外电子变倍状态
 u8 image_state;//图像状态,00 kjg,01 hw
-
+int CommendCnt_HW;
 /*内部变量_跟踪板*/
 u32 data_recv_Tail[128];
 u16 Data_send_PC_F[45];

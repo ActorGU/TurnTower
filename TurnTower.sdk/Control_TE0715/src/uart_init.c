@@ -183,7 +183,7 @@ void Uart_HW_rx(void)
 	u8 empty = 0;
 	u32 data_reg;
 	u16 checksum = 0;
-	int CommendCnt_HW = 0;
+
 
 	memset( data_recv_HW , 0 ,127);
 	/*读取fifo中所有128个数*/
@@ -206,8 +206,17 @@ void Uart_HW_rx(void)
 		{
 			Commend_HW_to_ZYNQ[0] = data_recv_HW[j];
 			Commend_HW_to_ZYNQ[1] = data_recv_HW[j+1];
-			CommendCnt_HW += 1;
 			/*收到红外第一包数据后进行图像翻转*/
+			if( 1 == CommendCnt_HW )
+			{
+				CommendCnt_HW = 35;
+			}
+			else if( 0 == CommendCnt_HW )
+			{
+				CommendCnt_HW = 1;
+			}
+
+
 			if (1 == CommendCnt_HW)
 			{
 				sleep(2);

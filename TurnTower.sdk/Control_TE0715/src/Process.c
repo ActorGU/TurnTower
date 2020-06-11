@@ -237,7 +237,7 @@ void Commend_Optic_analysis(void)
 				{
 				}
 		break;
-		case(0x0d):
+		case(0x0d)://外部非均匀校正
 				if(0x02 == C1_imager_choose)
 				{
 					Commend_ZYNQ_to_HW[2] = 0x6f;
@@ -255,6 +255,26 @@ void Commend_Optic_analysis(void)
 				}
 				else if (0x01 == C1_imager_choose)
 				{
+				}
+		break;
+		case(0x0A)://调焦+
+				if (0x02 == C1_imager_choose)
+				{
+					Commend_ZYNQ_to_HW[2] = 0x87;
+				}
+				else if (0x01 == C1_imager_choose)
+				{
+
+				}
+		break;
+		case(0x0B)://调焦-
+				if (0x02 == C1_imager_choose)
+				{
+					Commend_ZYNQ_to_HW[2] = 0x88;
+				}
+				else if (0x01 == C1_imager_choose)
+				{
+
 				}
 		break;
 		default://默认无动作

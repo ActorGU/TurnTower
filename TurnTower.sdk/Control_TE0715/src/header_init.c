@@ -13,7 +13,7 @@ void Data_Header()
 	memset(Commend_ZYNQ_to_HW , 0 , 7);
 	Commend_ZYNQ_to_HW[0] = 0xEB;
 	Commend_ZYNQ_to_HW[1] = 0x90;
-
+	CommendCnt_HW = 0;//定义一个变量来判断是否是红外相机反馈的第一包数据,以便用于对红外相机进行图像的翻转
 
 	/*PC数据包包头*/
 	DataSend_PC[0].packet_Header0 = 0x55;
