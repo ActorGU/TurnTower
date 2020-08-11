@@ -12,6 +12,7 @@
 #include "xstatus.h"
 #include "header_init.h"
 #include "Process.h"
+#include "sleep.h"
 TmrCntrSetup SettingsTable=
 	{TICK_TIMER_FREQ_HZ, 0, 0, 0};		/* Ticker timer counter initial setup,only output freq */
 
@@ -277,17 +278,17 @@ int Drv_TTCTimer_Init(u32 uiChannel, u32 uiPeriodMs, void(*func)())
 }
 
 
-void ISR_TTC0(void *arg)
-{
-//	if (DataRecv_PC[0].packet_Check)
-//	{
-//		Data_analysis();
-//	}
-
-	u8 send[] = {0x55 , 0xAA , 0xBB , 0xCC , 0xdd , 0xee , 0xff};
-	uart_tx(tx_address_PC , send , 7);
-	Drv_TTCTimer_ClearIntr(arg);
-}
+//void ISR_TTC0(void *arg)
+//{
+////	if (DataRecv_PC[0].packet_Check)
+////	{
+////		Data_analysis();
+////	}
+//
+//	u8 send[] = {0x55 , 0xAA , 0xBB , 0xCC , 0xdd , 0xee , 0xff};
+//	uart_tx(tx_address_PC , send , 7);
+//	Drv_TTCTimer_ClearIntr(arg);
+//}
 
 
 s32 TTCTimer_setup()
@@ -344,11 +345,6 @@ s32 TTCTimer_setup()
 					(Xil_InterruptHandler)Uart_Tracker_rx,(void*)&Intc);
 	XScuGic_Enable(&Intc, XPAR_FABRIC_UART_TRACKER_RXD_ENDOFPACKET_INTR);
 
-	//定时器中断配置
-//	Drv_TTCTimer_Init(0, 20, Peripheral_Inquire);
-	Drv_TTCTimer_Init(1, 20 , Data_upload);
-//	Drv_TTCTimer_Start(0);
-	Drv_TTCTimer_Start(1);
 	//中断异常处理函数
 	Xil_ExceptionInit();
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_IRQ_INT,
@@ -359,6 +355,16 @@ s32 TTCTimer_setup()
 	g_bGetCpuCmd = 0;
 	g_bInitComplete = 0;
 	Data_Header();
+
+	//定时器中断配置
+	Drv_TTCTimer_Init(0, 20, SendData_Servo);
+	Drv_TTCTimer_Init(1, 40 , Data_upload);
+	SelfCheck();
+	sleep(5);
+
+	Drv_TTCTimer_Start(0);
+	Drv_TTCTimer_Start(1);
+	Commend_once();
 
 	return 0;
 

@@ -16,7 +16,6 @@ int main(void)
 {
 	init_platform();
 	TTCTimer_setup();
-
 	while (1)
 	{
 

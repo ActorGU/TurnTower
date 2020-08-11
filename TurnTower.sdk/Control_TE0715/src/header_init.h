@@ -10,5 +10,6 @@
 #include "uart_init.h"
 
 void Data_Header();
+void Commend_once(void);
 
 #endif /* SRC_HEADER_INIT_H_ */

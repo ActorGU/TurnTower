@@ -17,12 +17,13 @@ void Data_analysis(void)
 {
 
 	int i = 0;
+	g_bCmdAnalysisComplete = 0;
 	switch(DataRecv_PC.packet_ID)
 	{
 	/*跟踪器指令*/
 		case(Packet_E1):
 		case(Packet_E2):
-			Commend_Tail_analysis();
+			Commend_Tracker_analysis();
 		break;
 
 	/*光学指令*/
@@ -49,6 +50,8 @@ void Data_analysis(void)
 		DataRecv_PC.packet_Data[i] = 0x00;
 	}
 	DataRecv_PC.packet_Check = 0x00;
+
+	g_bCmdAnalysisComplete = 1;
 }
 
 /*************************************************************
@@ -62,10 +65,10 @@ void Commend_Servo_analysis(void)
 	u8 Servo_state;
 	u16 Yaw_angle;//航向
 	u16 Pitch_angle;//俯仰
-	u16 Yaw_speed;
-	u16 Pitch_speed;
-	float Yaw_angle_temp;
-	float Pitch_angle_temp;
+//	u16 Yaw_speed;
+//	u16 Pitch_speed;
+//	float Yaw_angle_temp;
+//	float Pitch_angle_temp;
 
 	memset(Commend_ZYNQ_to_ServoA , 0 , 31);
 	memset(Commend_ZYNQ_to_ServoB , 0 , 31);
@@ -74,34 +77,47 @@ void Commend_Servo_analysis(void)
 	/*对于上位机发来的指令,DataRecv_PC.packet_Data包序号对应协议中字节序号-1*/
 		switch(Servo_state)
 		{
-		case(0x00)://关闭伺服__双轴空闲
+		case(0x00)://关闭伺服__空闲状态
+				g_uZynqCurrentState = ZYNQ_STATE_OFFSERVO;
 				Commend_ZYNQ_to_ServoA[3] = 0x00;
+
 		break;
 		case(0x04)://锁定零位__指向0度
+				if(ZYNQ_STATE_ATRACE != g_uZynqCurrentState)//如果不是跟踪状态,则响应指令
+				{
+					g_uZynqCurrentState = ZYNQ_STATE_IDLE;
+//					Commend_ZYNQ_to_ServoA[3] = 0x05;
+//					Commend_ZYNQ_to_ServoA[5] = 0x00;
+//					Commend_ZYNQ_to_ServoA[6] = 0x00;
+//
+//					Commend_ZYNQ_to_ServoB[3] = 0x05;
+//					Commend_ZYNQ_to_ServoB[5] = 0x00;
+//					Commend_ZYNQ_to_ServoB[6] = 0x00;
+					Yaw_angle_temp = 0;
+					Pitch_angle_temp = 0;
+				}
+				else if(ZYNQ_STATE_ATRACE == g_uZynqCurrentState)
+				{
+					g_uZynqCurrentState = ZYNQ_STATE_SERCH;//如果是跟踪状态,则切换搜索状态
+				}
 
-				Commend_ZYNQ_to_ServoA[3] = 0x05;
-				Commend_ZYNQ_to_ServoA[5] = 0x00;
-				Commend_ZYNQ_to_ServoA[6] = 0x00;
-
-				Commend_ZYNQ_to_ServoB[3] = 0x05;
-				Commend_ZYNQ_to_ServoB[5] = 0x00;
-				Commend_ZYNQ_to_ServoB[6] = 0x00;
 		break;
 
 		case(0x01)://手动__伺服搜索
+				g_uZynqCurrentState = ZYNQ_STATE_SERCH;
 				Yaw_speed = ( (DataRecv_PC.packet_Data[1]<<8) & 0xff00 ) | ( DataRecv_PC.packet_Data[2] & 0x00ff );
 				Pitch_speed = ( (DataRecv_PC.packet_Data[3]<<8) & 0xff00 ) | ( DataRecv_PC.packet_Data[4] & 0x00ff );
 
-				Commend_ZYNQ_to_ServoA[3] = 0x0A;
-				Commend_ZYNQ_to_ServoA[9] = (u16)Yaw_speed & 0x00ff;
-				Commend_ZYNQ_to_ServoA[10] = ((u16)Yaw_speed >> 8)& 0x00ff;
-
-				Commend_ZYNQ_to_ServoB[3] = 0x0A;
-				Commend_ZYNQ_to_ServoB[9] = (u16)Pitch_speed & 0x00ff;
-				Commend_ZYNQ_to_ServoB[10] = ((u16)Pitch_speed >> 8)& 0x00ff;
+//				Commend_ZYNQ_to_ServoA[3] = 0x0A;
+//				Commend_ZYNQ_to_ServoA[9] = (u16)Yaw_speed & 0x00ff;
+//				Commend_ZYNQ_to_ServoA[10] = ((u16)Yaw_speed >> 8)& 0x00ff;
+//
+//				Commend_ZYNQ_to_ServoB[3] = 0x0A;
+//				Commend_ZYNQ_to_ServoB[9] = (u16)Pitch_speed & 0x00ff;
+//				Commend_ZYNQ_to_ServoB[10] = ((u16)Pitch_speed >> 8)& 0x00ff;
 				break;
 		case(0x03)://随动__伺服指向
-
+				g_uZynqCurrentState = ZYNQ_STATE_IDLE;
 				//PC指令先高8后低8
 				Yaw_angle = ( (DataRecv_PC.packet_Data[5]<<8) & 0xff00 ) | ( DataRecv_PC.packet_Data[6] & 0x00ff );
 				Pitch_angle = ( (DataRecv_PC.packet_Data[7]<<8) & 0xff00 ) | ( DataRecv_PC.packet_Data[8] & 0x00ff );
@@ -115,31 +131,33 @@ void Commend_Servo_analysis(void)
 				{
 					Pitch_angle_temp = Pitch_angle_temp - 360;
 				}
-//				Pitch_angle_temp = (u16)Pitch_angle_temp | 0x8000;
-//				Pitch_angle_temp = (16)(Pitch_angle_temp;
-//				pintch_temp = Pitch_angle_temp;
-//				Yaw_angle_temp = (int)(Yaw_angle_temp+0.5);
-//				Pitch_angle_temp = (int)(Pitch_angle_temp+0.5);
-//				Pitch_angle_temp
-//				u16 Pitch_temp_a;
-//				Pitch_temp_a = (IN16)(Pitch_angle_temp*100.0);
+//				//伺服接收先低8后高8
+//				Commend_ZYNQ_to_ServoA[3] = 0x05;
+//				Commend_ZYNQ_to_ServoA[5] = (u16)(Yaw_angle_temp*100) & 0x00ff;
+//				Commend_ZYNQ_to_ServoA[6] = ((u16)(Yaw_angle_temp*100) >> 8)& 0x00ff;
+//
+//				Commend_ZYNQ_to_ServoB[3] = 0x05;
+//				Commend_ZYNQ_to_ServoB[5] = (IN16)(Pitch_angle_temp*100) & 0x00ff;
+//				Commend_ZYNQ_to_ServoB[6] = (((IN16)(Pitch_angle_temp*100) >> 8)& 0x00ff);
+		break;
 
-				//伺服接收先低8后高8
-				Commend_ZYNQ_to_ServoA[3] = 0x05;
-				Commend_ZYNQ_to_ServoA[5] = (u16)(Yaw_angle_temp*100) & 0x00ff;
-				Commend_ZYNQ_to_ServoA[6] = ((u16)(Yaw_angle_temp*100) >> 8)& 0x00ff;
 
-				Commend_ZYNQ_to_ServoB[3] = 0x05;
-				Commend_ZYNQ_to_ServoB[5] = (IN16)(Pitch_angle_temp*100) & 0x00ff;
-				Commend_ZYNQ_to_ServoB[6] = (((IN16)(Pitch_angle_temp*100) >> 8)& 0x00ff);
-				break;
-		default:
-				Commend_ZYNQ_to_ServoA[3] = 0x00;
-				Commend_ZYNQ_to_ServoB[3] = 0x00;
-				break;
+		case(0x06)://截获指令
+//				g_uServoNewState = SERVO_STATE_ATRACE_AB;
+				if(ZYNQ_STATE_ATRACE != g_uZynqCurrentState)//非跟踪状态下,速度清零,指向角度保持不变
+				{
+					g_uZynqCurrentState = ZYNQ_STATE_LOCK;
+					Yaw_speed = 0;
+					Pitch_speed = 0;
+				}
+		break;
+
+
 		}
 
-		SendData_Servo();
+//			g_bServoCommendUpdate = 1;
+
+
 
 
 }
@@ -185,25 +203,25 @@ void Commend_Optic_analysis(void)
 		case(0x08)://视场+,
 				if (0x02 == C1_imager_choose)
 				{
-					Commend_ZYNQ_to_HW[2] = 0x84;
-				}
-				else if (0x01 == C1_imager_choose)
-				{
-//					Commend_ZYNQ_to_KJG.commend1 = 0x07;
-//					Commend_ZYNQ_to_KJG.commend2 = 0x02;
-					Commend_ZYNQ_to_KJG_new[3] = 0x20;
-				}
-		break;
-		case(0x09)://视场-
-				if (0x02 == C1_imager_choose)
-				{
 					Commend_ZYNQ_to_HW[2] = 0x85;
 				}
 				else if (0x01 == C1_imager_choose)
 				{
 //					Commend_ZYNQ_to_KJG.commend1 = 0x07;
-//					Commend_ZYNQ_to_KJG.commend2 = 0x03;
+//					Commend_ZYNQ_to_KJG.commend2 = 0x02;
 					Commend_ZYNQ_to_KJG_new[3] = 0x40;
+				}
+		break;
+		case(0x09)://视场-
+				if (0x02 == C1_imager_choose)
+				{
+					Commend_ZYNQ_to_HW[2] = 0x84;
+				}
+				else if (0x01 == C1_imager_choose)
+				{
+//					Commend_ZYNQ_to_KJG.commend1 = 0x07;
+//					Commend_ZYNQ_to_KJG.commend2 = 0x03;
+					Commend_ZYNQ_to_KJG_new[3] = 0x20;
 				}
 		break;
 		case(0x02)://亮度+
@@ -300,7 +318,7 @@ void Commend_Optic_analysis(void)
  * 函数名称：Commend_Tracker_analysis
  * 函数功能：解析跟踪器指令(直接转发)
  *************************************************************/
-void Commend_Tail_analysis(void)
+void Commend_Tracker_analysis(void)
 {
 
 	int j = 0;
@@ -321,15 +339,7 @@ void Commend_Tail_analysis(void)
 	}
 	Commend_ZYNQ_to_Tracker[PC_Packet_Len+2] = DataRecv_PC.packet_Check;
 	image_choose_commend = Commend_ZYNQ_to_Tracker[5]&0x07;
-//	switch(image_choose_commend)
-//	{
-//	case(0x01)://kjg
-//		image_state = 0x00;
-//	break;
-//	case(0x02)://hw
-//		image_state = 0x01;
-//	break;
-//	}
+
 
 	//直接转发数据
 //	uart_tx(tx_address_Tracker , Commend_ZYNQ_to_Tracker , PC_Packet_Len+3);
@@ -357,7 +367,13 @@ void Peripheral_Inquire(void *arg)
 //	Commend_ZYNQ_to_KJG.packet_Header2_Inq = 0x04;
 //	Commend_ZYNQ_to_KJG.commend1_Inq = 0x47;
 //	SendData_KJG(0xff);//查询指令
-	Drv_TTCTimer_ClearIntr(arg);
+//	Drv_TTCTimer_ClearIntr(arg);
 
+
+}
+
+
+void SelfCheck(void)
+{
 
 }

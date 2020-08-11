@@ -5,9 +5,12 @@
  *      Author: asguj
  */
 #include "header_init.h"
-
+#include "uart_init.h"
+#include "process.h"
+#include "sleep.h"
 void Data_Header()
 {
+//	u8 data_close[11];
 
 	/*红外数据包包头*/
 	memset(Commend_ZYNQ_to_HW , 0 , 7);
@@ -40,12 +43,6 @@ void Data_Header()
 		DataSend_PC[i].packet_Check = 0x00;
 	}
 
-//	/*可见光数据包包头*/
-//	Commend_ZYNQ_to_KJG.packet_Header0 = 0x81;
-//	Commend_ZYNQ_to_KJG.packet_Header1 = 0x01;
-//	Commend_ZYNQ_to_KJG.packet_Header2 = 0x04;
-//	Commend_ZYNQ_to_KJG.packet_End = 0xFF;
-
 	/*伺服数据包包头*/
 	memset(Commend_ZYNQ_to_ServoA , 0 , 31);
 	memset(Commend_ZYNQ_to_ServoB , 0 , 31);
@@ -60,6 +57,20 @@ void Data_Header()
 
 
 	/*ZYNQ内部状态初始化*/
+	g_uZynqCurrentState = ZYNQ_STATE_IDLE;//上电后伺服为空闲状态
+	g_bServoCommendUpdate = 0;
+	Yaw_angle_temp = 0;//上电后伺服指向零位
+	Pitch_angle_temp = 0;
 
 
+}
+void Commend_once(void)
+{
+
+	u8 tail_data_close[11] = {0x55,0xAA,0xDC,0x08,0x1D,0x07,0x00,0x00,0x00,0x00,0x12};
+	//	上电后给跟踪板发指令关掉跟经纬度数据显示
+	for(int i = 0 ; i < 11 ; i++ )
+	{
+		*tx_address_Tracker = tail_data_close[i];
+	}
 }
